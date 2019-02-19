@@ -2,5 +2,8 @@
 extern crate serde_derive;
 extern crate serde_yaml;
 extern crate serde;
+#[macro_use]
+extern crate log;
 
-mod config;
+pub mod config;
+pub mod service;

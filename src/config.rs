@@ -11,6 +11,28 @@ pub enum Protocol {
     HTTPS,
 }
 
+#[derive(Debug)]
+pub struct ConfigError {
+    msg: String,
+}
+
+impl ConfigError {
+
+    fn missing(field: &str) -> ConfigError {
+        let msg: String = format!("field \"{}\" cannot be empty", field);
+        ConfigError{msg: msg}
+    }
+}
+
+impl fmt::Display for ConfigError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Config error: {}", self.msg)
+    }
+}
+
+impl Error for ConfigError {
+}
+
 #[derive(Deserialize, Debug, Clone)]
 #[serde(default)]
 pub struct Config {
@@ -25,7 +47,6 @@ pub struct Config {
     pub log_level: String,
 
     pub protocol: Protocol,
-
 }
 
 impl Default for Config {
@@ -45,28 +66,9 @@ impl Default for Config {
     }
 }
 
-#[derive(Debug)]
-struct ConfigError {
-    msg: String,
-}
-
-impl ConfigError {
-
-    fn missing(field: &str) -> ConfigError {
-        let msg: String = format!("field \"{}\" cannot be empty", field);
-        ConfigError{msg: msg}
-    }
-}
-
-impl fmt::Display for ConfigError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Config error: {}", self.msg)
-    }
-}
-
 impl Config {
 
-    fn new(access_key_id: &String, secret_access_key: &String) -> Config {
+    pub fn new(access_key_id: &String, secret_access_key: &String) -> Config {
 
         let mut c:Config = Self::default();
         c.access_key_id = access_key_id.clone();
@@ -75,20 +77,20 @@ impl Config {
     }
 
 
-    fn load_from_file(path: &str) -> Result<Config, Box<dyn Error>> {
+    pub fn load_from_file(path: &str) -> Result<Config, Box<dyn Error>> {
 
         let f = File::open(path)?;
         let c:Config = serde_yaml::from_reader(f)?;
         Ok(c)
     }
 
-    fn load_from_str(content: &str) -> Result<Config, Box<dyn Error>> {
+    pub fn load_from_str(content: &str) -> Result<Config, Box<dyn Error>> {
 
         let c:Config = serde_yaml::from_str(content)?;
         Ok(c)
     }
 
-    fn check(&mut self) -> Result<(), ConfigError> {
+    pub fn check(&mut self) -> Result<(), ConfigError> {
         if self.access_key_id.len() == 0 {
             return Err(ConfigError::missing("access_key_id"))
         }
@@ -130,7 +132,7 @@ protocol: https
         let mut c:Config = Config::default();
         match c.check() {
             Ok(_) => assert!(false, "expect error"),
-            Err(err) => println!("{:?}", err),
+            Err(err) => println!("{}", err),
         }
     }
 
@@ -152,5 +154,14 @@ protocol: https
         assert_eq!(c.access_key_id, "access_key");
         assert_eq!(c.secret_access_key, "secret");
         assert_eq!(c.protocol, Protocol::HTTPS);
+    }
+
+     #[test]
+    fn config_from_file_missing() {
+        let tmp_path = "/tmp/test_qingstor_sdk.non";
+        match Config::load_from_file(tmp_path) {
+            Ok(_) => assert!(false, "expect error"),
+            Err(err) => println!("{:?}", err),
+        }
     }
 }
